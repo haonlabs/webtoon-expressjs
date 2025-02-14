@@ -110,7 +110,7 @@ const authenticateToken = (req, res, next) => {
 // Role-based authorization middleware
 const authorize = (roles) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    if (!roles.includes(req.user.roles)) {
       return res.status(403).json({ message: "Insufficient permissions" });
     }
     next();
@@ -136,15 +136,13 @@ app.post("/api/register", async (req, res) => {
   };
 
   users.push(newUser);
-  res
-    .status(201)
-    .json({
-      id: newUser.id,
-      username: newUser.username,
-      email: newUser.email,
-      roles: newUser.roles,
-      favorites: newUser.favorites,
-    });
+  res.status(201).json({
+    id: newUser.id,
+    username: newUser.username,
+    email: newUser.email,
+    roles: newUser.roles,
+    favorites: newUser.favorites,
+  });
 });
 
 app.post("/api/login", async (req, res) => {
@@ -156,7 +154,7 @@ app.post("/api/login", async (req, res) => {
   }
 
   const token = jwt.sign(
-    { id: user.id, username: user.username, role: user.role },
+    { id: user.id, username: user.username, roles: user.roles },
     "your-secret-key",
     { expiresIn: "24h" }
   );
@@ -326,7 +324,7 @@ app.post("/api/comments/:commentId/like", authenticateToken, (req, res) => {
 app.post(
   "/api/webtoons",
   authenticateToken,
-  authorize(["ADMIN", "AUTHOR"]),
+  authorize(["ADMIN"]),
   upload.single("thumbnail"),
   (req, res) => {
     const newWebtoon = {
@@ -351,17 +349,11 @@ app.post(
 app.post(
   "/api/webtoons/:id/episodes",
   authenticateToken,
-  authorize(["ADMIN", "AUTHOR"]),
+  authorize(["ADMIN"]),
   upload.array("panels"),
   (req, res) => {
     const webtoon = webtoons.find((w) => w.id === parseInt(req.params.id));
     if (!webtoon) return res.status(404).json({ message: "Webtoon not found" });
-
-    if (webtoon.author !== req.user.username && req.user.role !== "ADMIN") {
-      return res
-        .status(403)
-        .json({ message: "Unauthorized to add episodes to this webtoon" });
-    }
 
     const newEpisode = {
       episodeNumber: webtoon.episodes.length + 1,
